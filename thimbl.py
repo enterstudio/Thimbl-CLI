@@ -103,7 +103,7 @@ class Data:
             tstruct = apply(datetime.datetime, tlist)
             ftime = tstruct.strftime('%Y-%m-%d %H:%M:%S')
 
-            text = '{0}  {1}\n{2}\n\n'.format(ftime, msg['address'], msg['text'])
+            text = '{0}  {1}\n{2}\n\n'.format(ftime, msg['address'], msg['text'].encode('utf-8'))
             wout(text)
         
         
