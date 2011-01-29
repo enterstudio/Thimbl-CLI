@@ -37,7 +37,12 @@ class Data:
 
     def info(self):
         'Print some information about thimbl-cli'
-        print "cache_filename:" + self.__cache_filename()
+        print "cache_filename: " + self.__cache_filename()
+        print "name:           " + self.me['name']
+        print "address:        " + self.me['address']
+        print "email:          " + self.me['properties']['email']
+        print "mobile:         " + self.me['properties']['mobile']
+        print "website:        " + self.me['properties']['website']
 
     def load_cache(self):
         'Load the data file'
