@@ -71,7 +71,19 @@ class Data:
         wout('Finished')
     
     def follow(self, nick, address):
-        self.me['following'].append( { 'nick' : nick, 'address' : address } )
+
+        # rebuild the list of followees, removing duplicate addresses
+        followees = []
+        for f in self.me['following']:
+            if f['address'] == address:
+                print "Dropping dupe address"
+            else:
+                followees.append(f)
+                
+        # now add the address back in
+        followees.append({ 'nick' : nick, 'address' : address })
+
+        self.me['following'] = followees
     
     def post(self, text):
         'Create a message. Remember to publish() it'
