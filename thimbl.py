@@ -34,7 +34,11 @@ class Data:
         except OSError: pass # don't worry if directory already exists
         thimblfile = os.path.join(thimbldir, 'data1.jsn')
         return thimblfile
-        
+
+    def info(self):
+        'Print some information about thimbl-cli'
+        print "cache_filename:" + self.__cache_filename()
+
     def load_cache(self):
         'Load the data file'
         thimblfile = self.__cache_filename()
@@ -208,6 +212,8 @@ def main():
         d.follow(sys.argv[2], sys.argv[3])
     elif cmd == 'following':
         d.following()
+    elif cmd == 'info':
+        d.info()
     elif cmd == 'help':
         print "Sorry, not much help at the moment"
     elif cmd == 'post':
