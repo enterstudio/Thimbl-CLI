@@ -1,9 +1,7 @@
-from setuptools import setup, find_packages
+#from setuptools import setup, find_packages
+from distutils.core import setup
 setup(
     name = "Thimbl-CLI",
-    version = "0.1",
-    packages = find_packages(),
-    package_data = {
-        '': ['*.rst']
-        }
+    version = "0.0",
+    py_modules=['thimbl'],
 )
