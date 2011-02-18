@@ -2,34 +2,8 @@ Thimbl is a set of client-side tools for a distributed open source
 microblogging platform. Thimbl-CLI is a set of command-line tools, and
 is more modest in its ambitions than the whole of the Thimbl project.
 
+DOCUMENTATION
 
-The website should now be visible from
-http://blippy.github.com/Thimbl-CLI/
-which is basically a copy of the website directory.
+Online: http://blippy.github.com/Thimbl-CLI/
 
-Thimbl-CLI requires Linux/cygwin. It also includes the simplest
-possible finger daemon to serve your tweets.
-
-QUICKSTART
-
-Thimbl-CLI is pretty much ready to go out of the box client-side.
-
-Set up your profile:
-   thimbl setup mcarter@markcarter.me.uk "Just a guy" \
-      "Mark Carter" "www.markcarter.me.uk" "N/A" "info@markcarter.me.uk"
-Create a post:
-   thimbl post "First post"
-Follow someone: 
-   thimbl follow "dk" "dk@telekommunisten.net"
-Fetch messages of people you are following:
-   thimbl fetch
-Print messages (including your own):
-  thimbl print
-
-
-WHERE NEXT
-
-Look in the doc folder for a more complete manual on Thimbl-CLI, which
-contains the main documentation effort.
-
-
+In this repo: ./website/index.html
