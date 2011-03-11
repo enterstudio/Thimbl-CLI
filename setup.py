@@ -4,4 +4,5 @@ setup(
     name = "Thimbl-CLI",
     version = "0.0",
     py_modules=['thimbl'],
+    scripts=['thimbl'],
 )
