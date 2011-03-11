@@ -1,0 +1,37 @@
+<html>
+<head>
+<title>Thimbl-CLI Admin</title>
+</head>
+
+<body>
+<a href="index.html">home</a>
+<p>
+This page contains notes on maintaining Thimbl-CLI. 
+
+
+<hr><h2>Configuration of website</h2>
+
+<li>Install Ruby</li>
+
+<li><code>gem install grancher</code> . This is needed to push web
+pages to the branch gh-pages on github. Unless your name is Mark
+Carter, you probably wont need to use this functionality. Forkers
+might want to make want to use it, too.
+
+<li><code>git checkout -b gh-pages origin/gh-pages</code>. This creates a link between the local and remote repo for the website.
+
+
+<hr><h2>Pushing changes to website</h2>
+
+Once you have made changes to the website, commit them, and sync to the github using:
+<code>ruby granch.rb</code>
+
+
+<hr><h2>Links to external sites</h2>
+
+None so far.
+
+
+
+</body>
+</html>
