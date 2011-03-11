@@ -3,13 +3,6 @@
 @mark, or perhaps follow would first try to finger the account before adding it, to verify it's a real thimbl account?
 
 
-* tpp to create a presentation of thimbl
-
-* add shellinabox interface
-http://code.google.com/p/shellinabox/
-
 * create reply functionality 
-
-* print messages in tab-delimited format
 
 * Run thingerd.py as a service
