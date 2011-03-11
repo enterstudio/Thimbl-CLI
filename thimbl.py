@@ -9,11 +9,41 @@ import pdb
 import optparse
 import os
 import platform
+import pydoc
 import re
 import subprocess
 import sys
 import time
 
+#################################################################
+
+help_text =  """Usage: thimbl CMD [options]
+
+fetch 
+   download and print all messages
+
+follow NICK ADDRESS
+   follow someone at ADDRESS, giving them a nickname NICK
+   E.g. thimbl follow dk dmytri@thimbl.tk
+
+following
+   print a list of all people being followed
+
+info
+   print info about your account
+
+post MSG
+   create a post. e.g. thimbl post "First post"
+
+setup
+   interactively set up your profile
+
+stdin
+   post a message by reading from stdin
+
+unfollow ADDRESS
+   stop following ADDRESS
+"""
 
 #################################################################
 
@@ -249,14 +279,7 @@ def main():
     elif cmd == 'info':
         p.info()
     elif cmd == 'help':
-        print """Usage: thimbl CMD [options]
-fetch - download and print all messages
-following - print a list of all people being followed
-info - print info about your account
-post MSG - create a post. e.g. thimbl post "First post"
-setup - interactively set up your profile
-stdin - post a message by reading from stdin
-unfollow ADDRESS - stop following ADDRESS"""
+        pydoc.pager(help_text)
     elif cmd == 'post':
         p.post(sys.argv[2])
     elif cmd == 'setup':
