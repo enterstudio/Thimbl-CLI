@@ -22,46 +22,25 @@ def writeln(text):
         
 #################################################################
 
-class Data:
-    def __init__(self):
+class MyPlan:
+    plan_file = os.path.expanduser('~/.plan')
 
+    def __init__(self):
         # Try to load the cache file, if it exists
-        thimblfile = self.__cache_filename()
-        if os.path.isfile(thimblfile):
-            data = load(thimblfile)
+        if os.path.isfile(self.plan_file):
+            self.data = load(self.plan_file)
         else:
             print 'Configuration was guessed. You should run the commands'
             print "'info' or 'setup' to put in proper values"
-            data = self.empty_cache()
+            self.data = self.guess_plan()
 
-        self.set_data(data)
 
-    def set_data(self, data):
-        self.whoami = data['me']
-        self.data = data
-        self.me = data['plans'][self.whoami]
-            
+   
+    def __del__(self):
+        save(self.data, self.plan_file)
 
-    def __cache_filename(self):
-        'Return the name of the cache file that stores all of the data'
-        thimbldir = os.path.expanduser('~/.config/thimbl')
-        try: os.makedirs(thimbldir)
-        except OSError: pass # don't worry if directory already exists
-        thimblfile = os.path.join(thimbldir, 'data1.jsn')
-        return thimblfile
 
-    def info(self):
-        'Print some information about thimbl-cli'
-        print "cache_filename: " + self.__cache_filename()
-        me = self.me
-        print "name:           " + me['name']
-        print "address:        " + me['address']
-        props =  me['properties']
-        print "email:          " + props['email']
-        print "mobile:         " + props['mobile']
-        print "website:        " + props['website']
-
-    def empty_cache(self):
+    def guess_plan(self):
         'Create a blank config cache, populating it with sensible defaults'
 
         host = platform.node()
@@ -82,70 +61,39 @@ class Data:
         plan['following'] = []
         plan['properties'] = properties
 
-        return { 'me' : address, 'plans' : { address : plan }}
+        return plan
 
 
-    def save_cache(self):
-        cache_file = self.__cache_filename()
-        save(self.data, cache_file)
- 
     def fetch(self, wout = writeln):
-        '''Retrieve all the plans of the people I am following'''
-        for following in self.me['following']:
-            address = following['address']
-            if address == self.data['me']:
-                wout("Stop fingering yourself!")
-                continue
+        '''Retrieve all the plans of the people I am following, 
+        and print them in reverse chronological order'''
 
+        # retrieve plans
+        plans = []
+        for following in self.data['following']:
+            address = following['address']
             wout('Fingering ' + address)
             try:
                 plan = finger_user(address)
+                plans.append(plan)
                 wout("OK")
             except AttributeError:
                 wout('Failed. Skipping')
                 continue
-            #print "DEBUG:", plan
-            self.data['plans'][address] = plan
-        wout('Finished')
-    
-    def follow(self, nick, address):
 
-        # rebuild the list of followees, removing duplicate addresses
-        followees = []
-        for f in self.me['following']:
-            if f['address'] == address:
-                print "Dropping dupe address"
-            else:
-                followees.append(f)
-                
-        # now add the address back in
-        followees.append({ 'nick' : nick, 'address' : address })
-
-        self.me['following'] = followees
-    
-    def post(self, text):
-        'Create a message. Remember to publish() it'
-        timefmt = time.strftime('%Y%m%d%H%M%S', time.gmtime())
-        message = { 'time' : timefmt, 'text' : text }
-        self.me['messages'].append(message)
-    
-    
-    def post_file(self, filename):
-        'Create a post from the text in a file'
-        text = file(filename, 'r').read()
-        self.post(text)
-        
-    def prmess(self, wout = writeln):
-        'Print messages in reverse chronological order'
-        
         # accumulate messages
         messages = []
-        for address in self.data['plans'].keys():
-            plan = self.data['plans'][address]
+        for plan in plans:
+            if not plan.has_key('address'): continue
+            address = plan['address']
             if not plan.has_key('messages'): continue
-            for msg in plan['messages']:
-                msg['address'] = address
-                messages.append(msg)
+            for m in plan['messages']:
+                message = {'address' : address}
+                if not m.has_key('text'): continue
+                message['text'] = m['text']
+                if not m.has_key('time'): continue
+                message['time'] = m['time']
+                messages.append(message)
                 
         messages.sort(key = lambda x: x['time'])
         
@@ -163,15 +111,46 @@ class Data:
             wout(text)
         
         
+
+
+    def follow(self, nick, address):
+
+        # rebuild the list of followees, removing duplicate addresses
+        followees = []
+        for f in self.data['following']:
+            if f['address'] == address:
+                print "Dropping dupe address"
+            else:
+                followees.append(f)
+                
+        # now add the address back in
+        followees.append({ 'nick' : nick, 'address' : address })
+
+        self.data['following'] = followees
+
     def following(self):
         'Who am I following?'
-        followees = self.me['following']
+        followees = self.data['following']
         followees.sort(key = lambda x: x['nick'])
         for f in followees:
             print '{0:5} {1}'.format(f['nick'], f['address'])
 
+    def info(self):
+        'Print some information about thimbl-cli'
+        print "plan_file:      " + self.plan_file
+        print "name:           " + self.data['name']
+        print "address:        " + self.data['address']
+        props =  self.data['properties']
+        print "email:          " + props['email']
+        print "mobile:         " + props['mobile']
+        print "website:        " + props['website']
 
-    
+    def post(self, text):
+        'Create a message. Remember to publish() it'
+        timefmt = time.strftime('%Y%m%d%H%M%S', time.gmtime())
+        message = { 'time' : timefmt, 'text' : text }
+        self.data['messages'].append(message)
+
     def setup(self):
         'Interactively enter user information'
         def getval(v, prompt):
@@ -189,44 +168,29 @@ class Data:
                 else:
                     print "Didn't understand your response"
 
-        me = copy.copy(self.me)
-        del self.data['plans'][self.whoami]
-        me['name'] = getval(me['name'], 'Name')
-        address = getval(me['address'], 'Address')
-        me['address'] = address
+        for k in ['name', 'address']:
+            self.data[k] = getval(self.data[k], k)
 
-        props = me['properties']
-        props['website'] = getval(props['website'], 'Website')
-        props['mobile'] = getval(props['mobile'], 'Mobile')
-        props['email'] = getval(props['email'], 'Email')
-        me['properties'] = props
-
-        self.data['plans'][address] = me
-        self.data['me'] = address
-        self.set_data(self.data)
-
+        for k in ['website', 'mobile', 'email']:
+            self.data['properties'][k] = getval(self.data['properties'][k], k)
 
 
     def unfollow(self, address):
         'Remove an address from someone being followed'
         def func(f): return not (f['address'] == address)
-        new_followees = filter(func, self.me['following'])
-        self.me['following'] = new_followees
-      
+        new_followees = filter(func, self.data['following'])
+        self.data['following'] = new_followees
 
-    
-    def __del__(self):
-        #print "Data exit"
-        self.save_cache()
-        save(self.me, os.path.expanduser('~/.plan'))
         
 #################################################################
 
-
-    
-    
-
-
+def dget(d, k, default=None):
+    '''Get a value from a dictionary D using key K, 
+    returning DEFAULT if key not found'''
+    if d.has_key(k):
+        return d[k]
+    else:
+        return default
 
 def finger_user(user_name):
     '''Try to finger a user, and convert the returned plan into a dictionary
@@ -240,11 +204,6 @@ def finger_user(user_name):
     raw = m.group(1)
     j = json.loads(raw)
     return j
-
-
-    
-    
-
 
 
 
@@ -279,32 +238,34 @@ def main():
         print "No command specified. Try help"
         return
         
-    d = Data()
+    p = MyPlan()
     cmd = sys.argv[1]
     if cmd =='fetch':
-        d.fetch()
+        p.fetch()
     elif cmd == 'follow':
-        d.follow(sys.argv[2], sys.argv[3])
+        p.follow(sys.argv[2], sys.argv[3])
     elif cmd == 'following':
-        d.following()
+        p.following()
     elif cmd == 'info':
-        d.info()
+        p.info()
     elif cmd == 'help':
-        print "Sorry, not much help at the moment"
+        print """Usage: thimbl CMD [options]
+fetch - download and print all messages
+following - print a list of all people being followed
+info - print info about your account
+post MSG - create a post. e.g. thimbl post "First post"
+setup - interactively set up your profile
+stdin - post a message by reading from stdin
+unfollow ADDRESS - stop following ADDRESS"""
     elif cmd == 'post':
-        d.post(sys.argv[2])
-    elif cmd == 'print':
-        d.prmess()
-    elif cmd == 'read':
-        d.fetch()
-        d.prmess()
+        p.post(sys.argv[2])
     elif cmd == 'setup':
-        d.setup()
+        p.setup()
     elif cmd == 'stdin':
         text = sys.stdin.read()
-        d.post(text)
+        p.post(text)
     elif cmd == 'unfollow':
-        d.unfollow(sys.argv[2])
+        p.unfollow(sys.argv[2])
     else:
         print "Unrecognised command: ", cmd
 
