@@ -1,7 +1,5 @@
 (ql:quickload "cl-json")
-;(ql:quickload "yason")
-;(ql:system-apropos "json")
-;(ql:quickload "st-json")
+;(ql:quickload "cl-fad")
 (declaim (optimize (debug 3) (safety 3) (speed 0) (space 0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -37,7 +35,11 @@
   "Finger a user, returning his plan as a json structure"
   (let* ((lines (finger-to-plan user))
          (string (lines-to-string lines)))
-        (json:decode-json-from-string string)))
+    (handler-case
+     (json:decode-json-from-string string)
+     (error (e)
+            (format t "Problem with ~a. Ignoring" user)
+            nil))))
 
 ;(setf json (finger-to-json "dk@telekommunisten.org"))
 
@@ -77,6 +79,16 @@
 ;(post "bar")
 
 
+
+(defun slurp-file (filename)
+  (with-open-file (stream  filename :direction :input)
+                  (let ((seq (make-string (file-length stream))))
+                    (read-sequence seq stream)
+                    seq)))
+
+(setf *me* (json:decode-json-from-string (slurp-file (concatenate 'string (getenv "HOME") "\\.plan"))))
+
+
 (defun now-as-int ()
   "Return the time now as an integer"
   (loop for i from 0 to 5
@@ -87,7 +99,25 @@
   "A sub-association of a branch"
   `(cdr (assoc ,field-name ,branch)))
 
+(defmacro plan-address (plan)
+  "The address of a plan"
+  `(cassoc :address ,plan))
 
+(defmacro plan-messages (plan)
+  "The messages associated with a plan"
+  `(cassoc :messages ,plan))
+
+(defmacro message-address (message)
+   `(cassoc :address ,message))
+
+(defmacro message-text (message)
+   `(cassoc :text ,message))
+
+(defmacro message-time (message)
+  `(cassoc :time ,message))
+
+(defun get-message-time (message)
+  (message-time message))
 
 (defun post (message)
   (push `((:text . ,message) (:time . ,(now-as-int))) 
@@ -95,9 +125,9 @@
 
 ;  (setf (messages *me*) foo)
 
-(post "hello world anew")
+;;(post "hello world anew")
 
-(post "using another macro")
+;;(post "using another macro")
 
 
 
@@ -108,51 +138,58 @@
            (cassoc :following *me*) 
            :test #'equalp))
 
-;(follow "foo" "bar")
 
-;(follow "dk" "dk@telekommunisten.net")
-;(follow "ossa" "ossa@nummo.strangled.net")
-  
-#|
-(setup "ossa@numo.strangled.net" "Rumour Goddess" "Ossa" "http://nummo.strangled.net" "N/A" "ossa@numo.strangled.net")
-|#
+;;(follow  "dk"     "dmytri@thimbl.tk")
+
 
 (defun who-do-i-follow ()
   (loop for f in (cassoc :following *me*)
         collect (cassoc :address f)))
 
+;;(who-do-i-follow)
+
 (defvar *plans* nil)
 
 (defun fetch ()
-  (setf *plans* (loop for f in (who-do-i-follow)
-                      collect (finger-to-json f))))
+  (setf *plans* (mapcan #'finger-to-json (who-do-i-follow)))
+  t)
+
 ;(fetch)
 
 ;; bits below untested
 
-(defun add-adress-to-messages (address messages)
-  (loop for msg in messages
-	do (setf (cassoc :address msg) address)
-	collect msg))
+(defun add-address-to-messages (plan)
+  "Return the messages of a plan, augmented by the plan address"
+  (let* ((address (plan-address plan)))
+    (mapcar (lambda (m)
+              (let ((time (message-time m)))
+                (when (stringp time)
+                  (setf (message-time m) (parse-integer time)))
+                (acons :address address m)))
+            (plan-messages plan))))
+
 
 (defun prmsgs ()
   "Print all messages"
-  (let* ((unsorted-messages (loop for plan in (cons *me* *plans*)
-				  append (add-address-to-messages (cassoc :address plan) (cassoc :messages plan))))
-	 (sorted-messages (sort unsorted-messages #'< :key (lambda (message) (cassoc :time message)))))
-    (loop for msg in sorted-messages do
-	  (format t "~a   ~a ~%~a~%~%" (cassoc :time msg) (cassoc :address msg) (cassoc :text msg)))))
+  (let* ((plans (list (append *me* *plans*)))
+         (unsorted-messages (mapcar #'add-address-to-messages plans))
+         ;(t1 (print unsorted-messages))
+	 (sorted-messages (sort unsorted-messages #'< 
+                                :key #'get-message-time)))
+
+    (loop for msg in (car sorted-messages) do
+	  (format t "~a   ~a ~%~a~%~%" 
+                  (message-time msg) 
+                  (message-address msg) 
+                  (message-text msg)))))
+(prmsgs)
     
 
-;(prmsgs)
 	
 
                 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(follow "mike" "mike@mikepearce.net")
-(follow "dk" "dk@telekommunisten.org")
-(follow "ashull" "ashull@telekommunisten.org")
 
 ; (saveinitmem)
