@@ -1,1 +1,1 @@
-emacs --load project.el
+nohup emacs --load project.el &>/dev/null &

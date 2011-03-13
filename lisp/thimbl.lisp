@@ -1,5 +1,19 @@
+;;;; mostly for clisp right now
+
+#|
+(defun load-user-init-file ()
+  "Load the user init file, return NIL if it does not exist."
+  (load (merge-pathnames (user-homedir-pathname)
+                         (make-pathname :name ".clisprc" :type "lisp"))
+        :if-does-not-exist nil))
+;(load-user-init-file)
+
+(unless (find-package :ql)
+  (load-user-init-file))
+|#
+
 (ql:quickload "cl-json")
-;(ql:quickload "cl-fad")
+;;(ql:quickload "cl-fad")
 (declaim (optimize (debug 3) (safety 3) (speed 0) (space 0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -57,17 +71,22 @@
                     seq)))
 
 (when (and (featurep :win32) (featurep :clisp))
-  (defun home () (cat$ (getenv "USERPROFILE") "\\.plan"))  
+  ;(defun home () (cat$ (getenv "USERPROFILE") "\\.plan"))  ; try user-homedir-pathname instead
   (defun username () (getenv "USERNAME"))
   (defun domain () (getenv "USERDOMAIN"))
   t)
 
-
+(when (and (featurep :unix) (featurep :clisp))
+  (defun username () (getenv "USERNAME"))
+  (defun domain () (getenv "HOSTNAME"))
+  t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; my plan
 
-(defvar *plan-filename* (cat$ (home) "\\.plan"))
+(defvar *plan-filename* 
+  (merge-pathnames (user-homedir-pathname)
+                   (make-pathname :name ".plan" )))
 
 (defvar *me* nil)
 
@@ -158,38 +177,50 @@
 (defvar *plans* nil)
 
 (defun fetch ()
-  (setf *plans* (mapcan #'finger-to-json (who-do-i-follow)))
+  (format t "Fetching plans ...~%")
+  (setf *plans* (loop for f in (who-do-i-follow) 
+                      for p = (finger-to-json f)
+                      if p collect p))
+  (format t "Plans fetched~%")
   t)
 
 ;(fetch)
 
 ;; bits below untested
 
-(defun add-address-to-messages (plan)
-  "Return the messages of a plan, augmented by the plan address"
-  (let* ((address (plan-address plan)))
-    (mapcar (lambda (m)
-              (let ((time (message-time m)))
-                (when (stringp time)
-                  (setf (message-time m) (parse-integer time)))
-                (acons :address address m)))
-            (plan-messages plan))))
+(defun int (v)
+  "Convert a value into an integer"
+  (if (stringp v)
+      (parse-integer v)
+    v))
+
+(defun unroll-messages (list-of-plans)
+  "Return the messages of a list of plan, augmented by the plan address"
+  (loop for p in list-of-plans
+        for a = (plan-address p)
+        append (loop for m in (plan-messages p)
+                     do (setf (message-time m) (int (message-time m)))
+                     collect (acons :address a m))))
+
+;(unroll-messages *plans*)
 
 
-(defun prmsgs ()
+
+(defun prim ()
   "Print all messages"
-  (let* ((plans (list (append *me* *plans*)))
-         (unsorted-messages (mapcar #'add-address-to-messages plans))
+  (let* ((plans (append (list *me*) *plans*))
+         ;(t1 (break))
+         (unsorted-messages (unroll-messages plans))
          ;(t1 (print unsorted-messages))
 	 (sorted-messages (sort unsorted-messages #'< 
                                 :key #'get-message-time)))
 
-    (loop for msg in (car sorted-messages) do
+    (loop for msg in sorted-messages do
 	  (format t "~a   ~a ~%~a~%~%" 
                   (message-time msg) 
                   (message-address msg) 
                   (message-text msg)))))
-(prmsgs)
+(prim)
     
 
 	
@@ -200,3 +231,4 @@
 
 
 ; (saveinitmem)
+(defun rl () (load "thimbl.lisp")) ; a reloading function
