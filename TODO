@@ -1,7 +1,9 @@
+* ressurrect gui
 
-2010-12-07 08:41:16  dk@telekommunisten.org
+* It is possible to follow the same person multiple times - which causes message dupes, and should be avoided.
+
+* 2010-12-07 08:41:16  dk@telekommunisten.org
 @mark, or perhaps follow would first try to finger the account before adding it, to verify it's a real thimbl account?
-
 
 * create reply functionality 
 
