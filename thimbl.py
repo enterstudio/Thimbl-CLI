@@ -11,9 +11,12 @@ import os
 import platform
 import pydoc
 import re
+import socket
 import subprocess
 import sys
 import time
+import traceback
+import types
 
 #################################################################
 
@@ -52,6 +55,14 @@ def writeln(text):
         
 #################################################################
 
+class FetchError(Exception):
+    def __init__(self, value):
+        self.value = value
+    
+    def __str_(self):
+        return repr(self.value)
+
+#################################################################
 class MyPlan:
     plan_file = os.path.expanduser('~/.plan')
 
@@ -102,13 +113,13 @@ class MyPlan:
         plans = []
         for following in self.data['following']:
             address = following['address']
-            wout('Fingering ' + address)
             try:
-                plan = finger_user(address)
+                wout('Fetching {0}'.format(address))
+                plan = finger_user(address, wout)
                 plans.append(plan)
-                wout("OK")
-            except AttributeError:
-                wout('Failed. Skipping')
+                wout("... OK")
+            except FetchError as e:
+                wout('... Failed. Skipping. Cause: {0}'.format(e.value))
                 continue
 
         # accumulate messages
@@ -222,7 +233,10 @@ def dget(d, k, default=None):
     else:
         return default
 
-def finger_user(user_name):
+# consider the following function deprecated, but keep it
+# around for awhile in case it comes in handy. It is certainly useful
+# as a demo on how the piping mechanism works
+def finger_user_deprecated(user_name):
     '''Try to finger a user, and convert the returned plan into a dictionary
     E.g. j = finger_user("dk@telekommunisten.org")
     print j['bio']    
@@ -234,6 +248,68 @@ def finger_user(user_name):
     raw = m.group(1)
     j = json.loads(raw)
     return j
+
+
+def finger(name, host, wout = writeln):
+
+    # preliminary check we can connect to host server
+    # it saves time if there's a host lookup failure
+    try:
+        socket.gethostbyname(host)
+    except socket.gaierror:
+        raise FetchError("Host '{0}' not found".format(host))
+
+
+    timeout = 10
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(timeout)
+        s.connect((host, 79))
+        s.send(name + "\r\n")
+        result = ""
+        while 1:
+            data = s.recv(4096)        
+            if len(data) == 0: break
+            result += data
+        s.close()
+    except socket.gaierror:
+        raise FetchError("socket.gaierror (2)")
+    except socket.timeout:
+        raise FetchError("Timeout after {0} seconds".format(timeout))
+
+
+    # check that we found the user
+    if result.find('no such user') <> -1:
+        raise FetchError("No user '{0}'".format(name))
+
+    wout("... Data received")
+    return result
+
+def finger_user(user_name, wout = writeln):
+    '''Try to finger a user, and convert the returned plan into a dictionary
+    E.g. j = finger_user("dk@telekommunisten.org")
+    print j['bio']    
+    '''
+    
+    m = re.search("(.+)@(.+)", user_name)
+    if m is None:
+        msg = "User/host decoding failure for {0}".format(user_name)
+        raise FetchError(msg)
+    name, host  = m.groups()
+
+
+    output = finger(name, host, wout)
+    m = re.search('^.*?Plan:\s*(.*)', output, re.M + re.S)
+    if m is None:
+        raise FetchError("No plan")
+    raw = m.group(1)
+    try:
+        j = json.loads(raw)
+    except Exception as e:
+        raise FetchError("Json reports: {0}".format(e))
+    return j
+
+
 
 
 

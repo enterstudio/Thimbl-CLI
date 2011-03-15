@@ -1,0 +1,3 @@
+# a project for emacs
+
+nohup emacs thimbl.py &>/dev/null &
