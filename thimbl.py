@@ -22,6 +22,10 @@ import types
 
 help_text =  """Usage: thimbl CMD [options]
 
+change
+   Interactively change the details of your profile. Use `reset' instead 
+   if your plan is hopelessly mangled.
+
 fetch 
    download and print all messages
 
@@ -38,8 +42,11 @@ info
 post MSG
    create a post. e.g. thimbl post "First post"
 
-setup
-   interactively set up your profile
+reset
+   !DANGER WILL ROBINSON. DATA WILL BE LOST!
+   Hard reset the plan file. Useful if it becomes corrupt, and you need to
+   reset it to a default guessed state.
+   
 
 stdin
    post a message by reading from stdin
@@ -47,6 +54,15 @@ stdin
 unfollow ADDRESS
    stop following ADDRESS
 """
+
+#################################################################
+
+class ThimblException(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return 'ThimblException: ' + self.value
 
 #################################################################
 
@@ -66,9 +82,9 @@ class FetchError(Exception):
 class MyPlan:
     plan_file = os.path.expanduser('~/.plan')
 
-    def __init__(self):
+    def __init__(self, reset = False):
         # Try to load the cache file, if it exists
-        if os.path.isfile(self.plan_file):
+        if os.path.isfile(self.plan_file) and not reset:
             self.data = load(self.plan_file)
         else:
             print 'Configuration was guessed. You should run the commands'
@@ -78,7 +94,9 @@ class MyPlan:
 
    
     def __del__(self):
-        save(self.data, self.plan_file)
+        # This class wont have a data attribute when the plan fails to load
+        if hasattr(self, 'data'):
+            save(self.data, self.plan_file)
 
 
     def guess_plan(self):
@@ -154,7 +172,15 @@ class MyPlan:
         
 
 
-    def follow(self, nick, address):
+    def follow(self, nick = None, address = None):
+
+        if (nick is None) or (address is None):
+            try:
+                nick = sys.argv[2]
+                address = sys.argv[3]
+            except IndexError:
+                raise ThimblException("Error in FOLLOW. Couldn't find NICK and ADDRESS.")
+
 
         # rebuild the list of followees, removing duplicate addresses
         followees = []
@@ -186,14 +212,21 @@ class MyPlan:
         print "mobile:         " + props['mobile']
         print "website:        " + props['website']
 
-    def post(self, text):
+    def post(self, text = None):
+
+        if text is None:
+            try:
+                text = sys.argv[2]
+            except IndexError:
+                raise ThimblException("Error in POST. Coudldn't find TEXT.")
+
         'Create a message. Remember to publish() it'
         timefmt = time.strftime('%Y%m%d%H%M%S', time.gmtime())
         message = { 'time' : timefmt, 'text' : text }
         self.data['messages'].append(message)
 
-    def setup(self):
-        'Interactively enter user information'
+    def change(self):
+        'Interactively change user information'
         def getval(v, prompt):
             while True:
                 print prompt + '=' + v+ ' [Accept (default)/Change/Erase]? '
@@ -216,11 +249,21 @@ class MyPlan:
             self.data['properties'][k] = getval(self.data['properties'][k], k)
 
 
-    def unfollow(self, address):
+    def unfollow(self, address = None):
         'Remove an address from someone being followed'
+        if address is None:
+            try:
+                address = sys.argv[2]
+            except IndexError:
+                raise ThimblException("Error in UNFOLLOW. ADDRESS unspecified.")
+
         def func(f): return not (f['address'] == address)
         new_followees = filter(func, self.data['following'])
         self.data['following'] = new_followees
+
+    def stdin(self):
+        text = sys.stdin.read()
+        self.post(text)
 
         
 #################################################################
@@ -324,13 +367,17 @@ def save(data, filename):
 def load(filename):
     'Load data from a json file'
     s = file(filename, 'r').read()
-    return json.loads(s)
+    try:
+        j = json.loads(s)
+    except ValueError:
+        raise ThimblException("Plan file can't be decoded. It is not valid JSON. Are you using OS X?")
+    return j
 
 
     
 
 
-def main():
+def uncaught_main():
 
     #parser.add_option("-f", "--file", dest="filename",
     #help="write report to FILE", metavar="FILE")
@@ -343,31 +390,31 @@ def main():
     if num_args < 1 :
         print "No command specified. Try help"
         return
-        
-    p = MyPlan()
+
     cmd = sys.argv[1]
-    if cmd =='fetch':
-        p.fetch()
-    elif cmd == 'follow':
-        p.follow(sys.argv[2], sys.argv[3])
-    elif cmd == 'following':
-        p.following()
-    elif cmd == 'info':
-        p.info()
-    elif cmd == 'help':
+    if cmd == 'help':
         pydoc.pager(help_text)
-    elif cmd == 'post':
-        p.post(sys.argv[2])
-    elif cmd == 'setup':
-        p.setup()
-    elif cmd == 'stdin':
-        text = sys.stdin.read()
-        p.post(text)
-    elif cmd == 'unfollow':
-        p.unfollow(sys.argv[2])
+        return
+
+    p = MyPlan(cmd == 'reset')
+
+    if cmd == 'reset': return # we don't need to do anything
+
+    if cmd in ['change', 'fetch', 'follow', 'following', 
+               'info', 'post', 'stdin', 'unfollow']:
+        eval_cmd = 'p.{0}()'.format(cmd)
+        eval(eval_cmd)
     else:
         print "Unrecognised command: ", cmd
+    return
 
+
+def main():
+    try:
+        uncaught_main()
+    except ThimblException as e:
+        print e
+        print "Type 'thimbl help' for some tips."
 
 if __name__ == "__main__":
     main()

@@ -9,31 +9,42 @@
 Thimbl-CLI commands. 
 
 
-<p>
-<code>fetch</code><br>
+<p><code>change</code><br>
+Interactively change the details of your profile. Use `reset' instead 
+if your plan is hopelessly mangled.
+
+
+<p><code>fetch</code><br>
 Retrieve and print the messages of people that you are following.
 
 
 <p><code>follow NAME ADDRESS</code><br>
 Follow someone. E.g. <code>thimbl follow dk dk@telekommunisten.org</code>
 
+<p><code>help</code><br>
+Print some help information.
+
 <p><code>info</code><br>
 Print information about the current configuration of Thimbl-CLI
 
 
-<p><code>help</code><br>
-Print some help information.
+
 
 <p><code>post MSG</code></br>
 Post a message. E.g. <code>thimbl post "Hello world"</code>
 
-<p><code>setup</code><br>
-Configure your profile. You will be prompted for the settings.
+<p><code>reset</code></br>
+!DANGER WILL ROBINSON. DATA WILL BE LOST!<br>
+Hard reset the plan file. Useful if it becomes corrupt, and you need to
+reset it to a default guessed state.
+
 
 <p><code>stdin</code><br>
  Post a message by reading from stdin
 
-
+<p><code>unfollow ADDRESS</code><br>
+Stop following ADDRESS. E.g. 
+<pre>unfollow dk@telekommunisten.org</pre>
 
 
 
