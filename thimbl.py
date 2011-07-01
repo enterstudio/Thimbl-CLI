@@ -84,8 +84,9 @@ class MyPlan:
 
     def __init__(self, reset = False):
         # Try to load the cache file, if it exists
+        self.prepost = ['', '']
         if os.path.isfile(self.plan_file) and not reset:
-            self.data = load(self.plan_file)
+            self.data = load(self.plan_file, keep_prepost=self.prepost)
         else:
             print 'Configuration was guessed. You should run the commands'
             print "'info' or 'setup' to put in proper values"
@@ -96,7 +97,9 @@ class MyPlan:
     def __del__(self):
         # This class wont have a data attribute when the plan fails to load
         if hasattr(self, 'data'):
-            save(self.data, self.plan_file)
+            save(self.data, self.plan_file,
+                 prefix=self.prepost[0],
+                 postfix=self.prepost[1])
 
 
     def guess_plan(self):
@@ -287,7 +290,7 @@ def finger_user_deprecated(user_name):
     args = ['finger', user_name]
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
     output = p.communicate()[0]
-    m = re.search('^.*?Plan:\s*(.*)', output, re.M + re.S)
+    m = re.search('^.*?Plan:\s*(\{.*)$', output, re.M + re.S)
     raw = m.group(1)
     j = json.loads(raw)
     return j
@@ -342,7 +345,7 @@ def finger_user(user_name, wout = writeln):
 
 
     output = finger(name, host, wout)
-    m = re.search('^.*?Plan:\s*(.*)', output, re.M + re.S)
+    m = re.search('^.*?Plan:\s*(\{.*)', output, re.M + re.S)
     if m is None:
         raise FetchError("No plan")
     raw = m.group(1)
@@ -357,19 +360,22 @@ def finger_user(user_name, wout = writeln):
 
 
 
-def save(data, filename):
+def save(data, filename, prefix='', postfix=''):
     'Save data to a file as a json file'
     j = json.dumps(data)
-    file(filename, 'w').write(j)
+    file(filename, 'w').write(prefix+j+postfix)
 
 
          
-def load(filename):
+def load(filename, keep_prepost=None):
     'Load data from a json file'
     s = file(filename, 'r').read()
     try:
-        j = json.loads(s)
-    except ValueError:
+        m = re.search('^(.*?)(\{.*\})(.*?)$', s, re.M + re.S)
+        j = json.loads(m.group(2))
+        if keep_prepost is not None:
+            keep_prepost[0:0] = [m.group(1), m.group(3)]
+    except:
         raise ThimblException("Plan file can't be decoded. It is not valid JSON. Are you using OS X?")
     return j
 
